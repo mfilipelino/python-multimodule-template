@@ -13,3 +13,15 @@ def greet(name: str) -> str:
         Greeting message
     """
     return f"Hello, {name}!"
+
+
+def farewell(name: str) -> str:
+    """Return a farewell message.
+
+    Args:
+        name: Name to say goodbye to
+
+    Returns:
+        Farewell message
+    """
+    return f"Goodbye, {name}!"
