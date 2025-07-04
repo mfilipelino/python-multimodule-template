@@ -1,19 +1,35 @@
-# Module1 Makefile
-.PHONY: install test lint clean build help dev-install build-shared
+# Module1 Makefile - dual-mode operation
+.PHONY: install test lint clean build help dev-install build-shared workspace-mode
 
 # Variables
 PYTHON := python
 UV := uv
 MODULE_NAME := module1
-SHARED_PACKAGES := ../shared/packages
+SHARED_PACKAGES := ../../shared/packages
 
-# Default target
-install: dev-install
+# Mode detection
+WORKSPACE_MODE := $(shell test -f ../../pyproject.toml && grep -q "\[tool.uv.workspace\]" ../../pyproject.toml && echo "1" || echo "0")
 
-# Install dependencies using uv
+# Default target - choose mode based on workspace detection
+install: workspace-mode
+
+# Workspace mode detection
+workspace-mode:
+ifeq ($(WORKSPACE_MODE),1)
+	@echo "$(MODULE_NAME): Using workspace mode (managed by root workspace)"
+else
+	@echo "$(MODULE_NAME): Using package mode"
+	@$(MAKE) dev-install
+endif
+
+# Install dependencies using uv (package mode)
 dev-install:
 	@echo "Installing $(MODULE_NAME) dependencies..."
+ifeq ($(WORKSPACE_MODE),1)
+	@echo "In workspace mode - dependencies managed by root workspace"
+else
 	$(UV) sync --dev
+endif
 
 # Install production dependencies only
 prod-install:
@@ -23,15 +39,23 @@ prod-install:
 # Run tests
 test:
 	@echo "Running tests for $(MODULE_NAME)..."
+ifeq ($(WORKSPACE_MODE),1)
+	@echo "In workspace mode - use 'make test' from root directory"
+else
 	$(UV) run pytest
+endif
 
 # Run linting
 lint:
 	@echo "Running linting for $(MODULE_NAME)..."
+ifeq ($(WORKSPACE_MODE),1)
+	@echo "In workspace mode - use 'make lint' from root directory"
+else
 	$(UV) run black --check .
 	$(UV) run ruff check .
 	$(UV) run bandit -r src/
 	$(UV) run pyright src/
+endif
 
 # Format code
 format:
@@ -68,13 +92,20 @@ build-shared: build
 # Help
 help:
 	@echo "Available targets for $(MODULE_NAME):"
-	@echo "  install     - Install dev dependencies (default)"
-	@echo "  dev-install - Install dev dependencies"
+	@echo "  install     - Install dependencies (mode-aware, default)"
+	@echo "  dev-install - Install dev dependencies (package mode)"
 	@echo "  prod-install- Install production dependencies only"
-	@echo "  test        - Run tests"
-	@echo "  lint        - Run linting (black, ruff, bandit, pyright)"
+	@echo "  test        - Run tests (mode-aware)"
+	@echo "  lint        - Run linting (mode-aware)"
 	@echo "  format      - Format code (black, ruff)"
 	@echo "  clean       - Clean build artifacts"
 	@echo "  build       - Build package"
 	@echo "  build-shared- Build and copy to shared repository"
 	@echo "  help        - Show this help message"
+	@echo ""
+	@echo "Mode detection:"
+ifeq ($(WORKSPACE_MODE),1)
+	@echo "  Current mode: WORKSPACE (managed by root)"
+else
+	@echo "  Current mode: PACKAGE (standalone)"
+endif

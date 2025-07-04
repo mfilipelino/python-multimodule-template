@@ -64,32 +64,29 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
-    - name: Setup shared repository
-      run: make setup-shared
-
-    - name: Build dependencies for ${{ matrix.module }}
+    - name: Install workspace in development mode
       run: |
-        # Get modules needed to build this module (in dependency order)
-        modules=$(.github/scripts/get-build-order.sh ${{ matrix.module }})
-        for mod in $modules; do
-          echo "Building $mod..."
-          make -C "$mod" build-shared
-        done
-
-    - name: Install ${{ matrix.module }}
-      run: make -C ${{ matrix.module }} install
-
+        # Install workspace with all dependencies
+        uv sync --dev
+        
     - name: Test ${{ matrix.module }}
-      run: make -C ${{ matrix.module }} test
+      run: |
+        # Run tests for specific module using workspace
+        uv run pytest modules/${{ matrix.module }}/tests/ -v
 
     - name: Lint ${{ matrix.module }}
-      run: make -C ${{ matrix.module }} lint
+      run: |
+        # Run linting for specific module
+        uv run black --check modules/${{ matrix.module }}/
+        uv run ruff check modules/${{ matrix.module }}/
+        uv run bandit -r modules/${{ matrix.module }}/src/
+        uv run pyright modules/${{ matrix.module }}/src/
 
     - name: Upload coverage for ${{ matrix.module }}
       uses: codecov/codecov-action@v4
       if: success()
       with:
-        files: ./${{ matrix.module }}/coverage.xml
+        files: ./modules/${{ matrix.module }}/coverage.xml
         flags: ${{ matrix.module }}
         fail_ci_if_error: false
 

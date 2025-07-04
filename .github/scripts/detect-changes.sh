@@ -9,19 +9,15 @@ set -euo pipefail
 BASE_REF="${1:-origin/main}"
 HEAD_REF="${2:-HEAD}"
 
-# Get module dependencies
+# Get module dependencies using dynamic discovery
 get_module_dependencies() {
     local module="$1"
-    case "$module" in
-        "module1") echo "" ;;
-        "module2") echo "module1" ;;
-        *) echo "" ;;
-    esac
+    python .github/scripts/discover-dependencies.py dependencies "$module" 2>/dev/null || echo ""
 }
 
-# Get all available modules from the filesystem
+# Get all available modules using dynamic discovery
 get_all_modules() {
-    find . -maxdepth 1 -type d -name "module*" | sed 's|^\./||' | sort
+    python .github/scripts/discover-dependencies.py list 2>/dev/null || find ./modules -maxdepth 1 -type d -name "module*" | sed 's|^\./modules/||' | sort
 }
 
 # Get changed files
@@ -60,19 +56,10 @@ file_to_module() {
     echo "all"
 }
 
-# Get dependents of a module (modules that depend on this one)
+# Get dependents of a module using dynamic discovery
 get_dependents() {
     local target_module="$1"
-    local all_modules
-    all_modules=$(get_all_modules)
-    
-    for module in $all_modules; do
-        local deps
-        deps=$(get_module_dependencies "$module")
-        if [[ "$deps" == *"$target_module"* ]]; then
-            echo "$module"
-        fi
-    done | sort -u
+    python .github/scripts/discover-dependencies.py dependents "$target_module" 2>/dev/null || echo ""
 }
 
 # Main logic
