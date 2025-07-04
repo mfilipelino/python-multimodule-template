@@ -1,200 +1,426 @@
-# Multi-Module Python Project with Shared Package Repository
+# Multi-Module Python Project with UV Workspace
 
-This project contains multiple Python modules that depend on each other through built packages rather than source code dependencies.
+A modern Python multi-module project template featuring **dual-mode operation** with UV workspaces for development and package-based dependencies for production.
 
-## Project Structure
+## 🏗️ Architecture Overview
+
+This project supports two operation modes:
+
+### 🚀 **Workspace Mode** (Development - Default)
+- **Fast Setup**: Single `make all` command installs everything
+- **Unified Environment**: All modules in one UV workspace 
+- **Live Dependencies**: Editable installs with instant changes
+- **Shared Tooling**: Common linting, testing, and formatting
+
+### 📦 **Package Mode** (Production)
+- **Distribution Ready**: Modules built as wheel packages
+- **Version Control**: Explicit version dependencies
+- **Isolation**: Each module is self-contained
+- **Traditional**: Compatible with standard Python packaging
+
+## 📁 Project Structure
 
 ```
-project-root/
-├── shared/
-│   └── packages/         # Built packages (.whl files)
-├── module1/              # Base module (no dependencies)
-├── module2/              # Depends on module1 package
-├── README.md             # This file
-└── Makefile              # Root build system
+multimodules-template/
+├── pyproject.toml          # Workspace configuration & global tools
+├── .python-version         # Python version (3.12+)
+├── Makefile               # Dual-mode build system
+├── modules/               # All project modules
+│   ├── module1/           # Base module (no dependencies)
+│   │   ├── src/module1/   # Source code
+│   │   ├── tests/         # Module tests
+│   │   ├── pyproject.toml # Module configuration
+│   │   └── Makefile       # Module build commands
+│   └── module2/           # Dependent module
+│       ├── src/module2/   # Source code  
+│       ├── tests/         # Module tests
+│       ├── pyproject.toml # Module configuration (depends on module1)
+│       └── Makefile       # Module build commands
+├── shared/                # Package mode artifacts
+│   └── packages/          # Built wheel files (.whl)
+├── .github/
+│   ├── workflows/ci.yml   # Selective CI pipeline
+│   └── scripts/           # Dynamic dependency discovery
+│       ├── detect-changes.sh       # Change detection
+│       └── discover-dependencies.py # Dependency graph builder
+└── README.md              # This file
 ```
 
-## Key Features
+## ✨ Key Features
 
-- **Package-based Dependencies**: Modules depend on built packages, not source code
-- **Shared Repository**: All built packages stored in `shared/packages/`
-- **Dependency Order**: Builds modules in correct dependency order
-- **Isolation**: Each module is self-contained and testable independently
-- **Version Control**: Dependencies use specific package versions
-- **Modern Tooling**: Ruff for linting/formatting, Bandit for security, Pyright for type checking
-- **Selective CI**: Only tests changed modules and their dependents for faster feedback
+- **🔄 Dual-Mode Operation**: Workspace for dev, packages for production
+- **⚡ Dynamic Dependencies**: Auto-discovers module relationships
+- **🎯 Selective CI**: Only tests changed modules and dependents
+- **🛠️ Modern Tooling**: UV, Ruff, Black, Bandit, Pyright
+- **📊 Dependency Graph**: Automatic build order resolution
+- **🔧 Mode Detection**: Automatic mode switching based on configuration
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Python 3.12+
-- [uv](https://github.com/astral-sh/uv) - Python package manager
-- Make
+### Prerequisites
+- **Python 3.12+**
+- **[UV](https://github.com/astral-sh/uv)** - Fast Python package manager
+- **Make**
 
-## Quick Start
+### Installation & Setup
 
-### Build All Modules (Recommended)
 ```bash
+# Clone and enter the project
+git clone <repository-url>
+cd multimodules-template
+
+# Install everything (auto-detects workspace mode)
 make all
 ```
-This will:
-1. Setup the shared package repository
-2. Build all modules in dependency order
-3. Install all modules with their dependencies
 
-### Step-by-Step Build
+This automatically:
+1. 🔍 Detects operation mode (workspace/package)
+2. 📦 Installs all dependencies with UV
+3. 🔗 Sets up module cross-dependencies
+4. ✅ Ready for development!
+
+## 🎮 Available Commands
+
+### 🏠 Root Level Commands
+
 ```bash
-make setup-shared    # Setup shared repository
-make build-deps      # Build all modules in order
-make install         # Install all modules
+# Core Operations
+make all          # Auto-detect mode and install (default)
+make test         # Run all module tests (mode-aware)
+make lint         # Run all linting (mode-aware)
+make clean        # Clean all artifacts
+
+# Workspace Mode (Development)
+make workspace-install  # Force workspace installation
+
+# Package Mode (Production)
+make setup-shared       # Setup shared package repository
+make build-deps         # Build modules in dependency order
+make install           # Install from built packages
+make module1           # Build only module1
+make module2           # Build module2 (includes module1)
+
+# Utilities
+make help         # Show available targets with current mode
+make rebuild      # Clean and rebuild everything
 ```
 
-### Run Tests
+### 📋 Current Mode Detection
+
+The system automatically shows your current operation mode:
+
 ```bash
+make help
+```
+
+**Output Example:**
+```
+Mode detection:
+  Current mode: WORKSPACE (development)
+```
+
+## 🔧 Operation Modes
+
+### 🚀 Workspace Mode (Default for Development)
+
+**When active**: `pyproject.toml` contains `[tool.uv.workspace]`
+
+**Benefits:**
+- ⚡ Fast setup: `make all` installs everything instantly
+- 🔄 Live changes: Edit any module, changes are immediately available
+- 🧪 Unified testing: Run tests across all modules seamlessly
+- 🎯 Shared environment: One virtual environment for everything
+
+**Usage:**
+```bash
+# Install everything
+make all
+
+# Test all modules  
 make test
+
+# Lint all modules
+make lint
+
+# Work on any module - changes are immediately available
+vim modules/module1/src/module1/__init__.py
+# No rebuild needed! Changes are live.
 ```
 
-### Clean Everything
+### 📦 Package Mode (Production/Distribution)
+
+**When active**: No workspace configuration detected
+
+**Benefits:**
+- 📋 Explicit versions: Clear dependency contracts
+- 🔒 Isolation: Each module builds independently  
+- 📦 Distribution ready: Produces wheel files
+- 🏭 Traditional: Standard Python packaging workflow
+
+**Usage:**
 ```bash
-make clean
+# Setup package repository
+make setup-shared
+
+# Build in dependency order
+make build-deps
+
+# Install from packages
+make install
+
+# Build individual modules
+make module1  # Creates module1-0.1.0-py3-none-any.whl
 ```
 
-## Working with Individual Modules
+## 🧪 Development Workflow
 
-### Build module1 (no dependencies)
+### Workspace Mode (Recommended for Development)
+
 ```bash
-make module1
+# 1. Setup (once)
+make all
+
+# 2. Make changes to any module
+vim modules/module1/src/module1/__init__.py
+
+# 3. Test your changes (automatically includes dependencies)
+make test
+
+# 4. Lint your code
+make lint
+
+# 5. Done! No rebuild needed - changes are live
 ```
 
-### Build module2 (depends on module1)
+### Package Mode (For Distribution)
+
 ```bash
-make module2  # This will build module1 first if needed
+# 1. Build dependencies
+make build-deps
+
+# 2. Test with built packages
+make test
+
+# 3. Lint
+make lint
+
+# 4. Distribute wheels from shared/packages/
+ls shared/packages/*.whl
 ```
 
-### Work directly in a module directory
+## 🔍 Dynamic Dependency Management
+
+The system automatically discovers module relationships:
+
+### Adding Module Dependencies
+
+**1. Update `pyproject.toml`** in the dependent module:
+```toml
+# modules/module2/pyproject.toml
+dependencies = [
+    "module1",  # Simple workspace reference
+]
+```
+
+**2. The system automatically**:
+- 🔍 Discovers the dependency relationship
+- 📊 Updates build order
+- 🎯 Includes in selective CI
+- ✅ Works in both modes!
+
+### Viewing Dependencies
+
 ```bash
-cd module2
-make install-deps    # Install dependencies from shared repo
-make dev-install     # Install dev dependencies
-make test           # Run tests
+# List all modules in build order
+python .github/scripts/discover-dependencies.py list
+
+# Show dependencies of module2
+python .github/scripts/discover-dependencies.py dependencies module2
+
+# Show what depends on module1  
+python .github/scripts/discover-dependencies.py dependents module1
 ```
 
-## Dependency Management
+## 🚀 Selective CI System
 
-### Adding Dependencies Between Modules
-
-1. **In the dependent module's `pyproject.toml`**, add:
-   ```toml
-   dependencies = [
-       "module1 @ file://../shared/packages/module1-0.1.0-py3-none-any.whl",
-   ]
-   ```
-
-2. **Update the root Makefile** `MODULE_ORDER` to ensure proper build sequence:
-   ```makefile
-   MODULE_ORDER := module1 module2 module3
-   ```
-
-3. **Update the dependent module's Makefile** to check for dependencies:
-   ```makefile
-   install-deps:
-       @if [ ! -f $(SHARED_PACKAGES)/module1-0.1.0-py3-none-any.whl ]; then \
-           echo "Error: module1 package not found"; \
-           exit 1; \
-       fi
-   ```
-
-## Available Commands
-
-### Root Level Commands
-- `make all` - Complete build: setup, build deps, install (default)
-- `make setup-shared` - Setup shared package repository
-- `make build-deps` - Build all modules in dependency order
-- `make install` - Install all modules from shared repository
-- `make test` - Test all modules
-- `make lint` - Lint all modules
-- `make clean` - Clean all modules and shared repository
-- `make rebuild` - Clean and rebuild everything
-- `make module1` - Build and install only module1
-- `make module2` - Build and install module2 (includes module1)
-
-### Module Level Commands
-(Available in each module directory)
-- `make install` - Install dependencies and dev dependencies
-- `make install-deps` - Install module dependencies from shared repo
-- `make test` - Run module tests
-- `make lint` - Run module linting (black, ruff, bandit, pyright)
-- `make format` - Format code (black, ruff)
-- `make build-shared` - Build and copy to shared repository
-- `make clean` - Clean module build artifacts
-
-## Development Workflow
-
-1. **Make changes** in the relevant module
-2. **Build dependencies** if needed: `make build-deps`
-3. **Test your changes**: `make test`
-4. **Lint your code**: `make lint`
-5. **Rebuild if needed**: `make rebuild`
-
-## Selective CI System
-
-The project includes an intelligent CI system that only tests changed modules and their dependents:
+Intelligent CI that only tests what changed:
 
 ### How It Works
-- **Change Detection**: Automatically detects which files changed in commits/PRs
-- **Module Mapping**: Maps changed files to their respective modules
-- **Dependency Resolution**: Includes dependent modules in testing (e.g., if module1 changes, module2 is also tested)
-- **Parallel Testing**: Runs tests for each affected module in parallel using GitHub Actions matrix strategy
+- **🔍 Change Detection**: Analyzes git diffs to find changed files
+- **🗺️ Module Mapping**: Maps files to their modules
+- **📊 Dependency Resolution**: Includes dependent modules automatically
+- **⚡ Parallel Execution**: Tests affected modules simultaneously
 
 ### Change Detection Rules
-- `module1/**` → Tests module1 + module2 (dependent)
-- `module2/**` → Tests only module2
-- `shared/**`, `Makefile`, `.github/workflows/` → Tests all modules
-- `README.md`, `LICENSE`, `CONTRIBUTING.md` → Skips CI (docs only)
-
-### Benefits
-- ⚡ **Faster CI**: Only test what changed
-- 💰 **Cost Efficient**: Reduced compute time
-- 🔄 **Quick Feedback**: Faster results for developers
-- 📈 **Scalable**: Performance improves as more modules are added
-
-### Example Workflows
 ```bash
-# Only module2 changes → Tests only module2
-git commit -m "fix: Update module2 validation logic"
+# Examples of what triggers testing:
 
-# Module1 changes → Tests module1 AND module2 (dependency)
-git commit -m "feat: Add new function to module1"
-
-# Documentation changes → Skips all module testing
-git commit -m "docs: Update README with new examples"
-
-# Root file changes → Tests all modules
-git commit -m "chore: Update root Makefile"
+modules/module1/**     → Tests: module1, module2 (dependent)
+modules/module2/**     → Tests: module2 only
+pyproject.toml         → Tests: all modules (workspace config)
+.github/workflows/**   → Tests: all modules (CI changes)
+README.md             → Tests: none (docs only)
 ```
 
-## Adding New Modules
+### Benefits
+- ⚡ **3x Faster CI**: Only test what matters
+- 💰 **Cost Efficient**: Reduced compute usage
+- 🔄 **Quick Feedback**: Fast developer feedback loop
+- 📈 **Scales**: Better performance as modules grow
 
-1. **Create module directory** following the pattern `moduleN/`
-2. **Copy structure** from an existing module
-3. **Update `pyproject.toml`** with:
-   - New module name
-   - Dependencies on other modules (if any)
-4. **Update root Makefile** `MODULE_ORDER` to include the new module
-5. **Update dependent module Makefiles** to check for new dependencies
-6. **Update CI scripts** for new module:
-   - Add to `.github/scripts/detect-changes.sh` dependency map
-   - Add to `.github/scripts/get-build-order.sh` module order
+## 🔧 Module Development
 
-## Troubleshooting
+### Working with Individual Modules
 
-### "Package not found" errors
-- Run `make build-deps` to build all dependencies
-- Check that the shared repository exists: `ls shared/packages/`
+```bash
+# Enter module directory
+cd modules/module1
 
-### Circular dependencies
-- Review the `MODULE_ORDER` in the root Makefile
-- Ensure no circular dependencies exist between modules
+# Check current mode
+make help
 
-### Version mismatches
-- Update the version references in `pyproject.toml` files
-- Rebuild with `make rebuild`
+# In workspace mode - managed by root
+make test    # → "In workspace mode - use 'make test' from root directory"
+
+# In package mode - independent operation  
+make install # Install dependencies
+make test    # Run module tests
+make lint    # Run module linting
+```
+
+### Adding New Modules
+
+```bash
+# 1. Create module structure
+mkdir -p modules/module3/{src/module3,tests}
+
+# 2. Create pyproject.toml (copy from existing module)
+cp modules/module1/pyproject.toml modules/module3/
+# Edit name, dependencies, etc.
+
+# 3. Create Makefile (copy from existing module)  
+cp modules/module1/Makefile modules/module3/
+
+# 4. Done! System automatically discovers:
+python .github/scripts/discover-dependencies.py list
+# → module1, module2, module3
+```
+
+## 🛠️ Tools & Configuration
+
+### Global Tool Configuration
+All tools configured in root `pyproject.toml`:
+
+- **🔧 Ruff**: Linting and formatting (replaces flake8, isort)
+- **⚫ Black**: Code formatting  
+- **🔒 Bandit**: Security scanning
+- **📝 Pyright**: Type checking (faster than mypy)
+- **🧪 Pytest**: Testing framework
+
+### Per-Module Configuration
+Minimal module `pyproject.toml` files focus on:
+- Package metadata
+- Dependencies  
+- Module-specific settings
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"No module named 'module1'" in workspace mode:**
+```bash
+# Reinstall workspace
+rm -rf .venv uv.lock
+make workspace-install
+```
+
+**"Package not found" in package mode:**
+```bash
+# Build dependencies first
+make build-deps
+```
+
+**Wrong operation mode:**
+```bash
+# Check current mode
+make help
+
+# Force workspace mode (ensure pyproject.toml has [tool.uv.workspace])
+# Force package mode (remove/rename pyproject.toml)
+```
+
+**CI not detecting changes:**
+```bash
+# Test change detection locally
+.github/scripts/detect-changes.sh HEAD~1 HEAD
+```
+
+### Mode Switching
+
+**Switch to workspace mode:**
+```bash
+# Ensure root pyproject.toml has workspace config
+grep -A5 "\[tool.uv.workspace\]" pyproject.toml
+make all
+```
+
+**Switch to package mode:**
+```bash
+# Temporarily disable workspace
+mv pyproject.toml pyproject.toml.backup
+make all  # Now uses package mode
+mv pyproject.toml.backup pyproject.toml  # Restore when done
+```
+
+## 🎯 Best Practices
+
+### Development
+- 🚀 Use **workspace mode** for daily development
+- 🧪 Run `make test` frequently  
+- 🔧 Use `make lint` before committing
+- 📝 Keep module `pyproject.toml` files minimal
+
+### Production
+- 📦 Use **package mode** for releases
+- 🏷️ Version your modules appropriately
+- 📋 Test with built packages before release
+- 🔒 Use explicit version dependencies
+
+### CI/CD
+- ✅ Leverage selective CI for faster feedback
+- 🔄 Test both modes in your pipeline
+- 📊 Monitor which modules are tested per change
+- ⚡ Optimize based on change patterns
+
+## 📚 Architecture Benefits
+
+### For Developers
+- **⚡ Faster Setup**: One command gets everything working
+- **🔄 Live Changes**: Edit and test immediately
+- **🎯 Focused Testing**: Only test what you changed
+- **🛠️ Modern Tools**: Latest Python tooling
+
+### For Teams  
+- **📊 Clear Dependencies**: Explicit module relationships
+- **🔒 Isolation**: Modules can be developed independently
+- **📈 Scalable**: Performance improves with size
+- **🔄 Flexible**: Switch modes based on needs
+
+### For Production
+- **📦 Standard Packaging**: Compatible with PyPI, pip
+- **🏷️ Version Control**: Explicit dependency versions
+- **🔒 Reproducible**: Locked dependencies and builds
+- **📋 Auditable**: Clear dependency chain
+
+---
+
+## 🤝 Contributing
+
+1. 🍴 Fork the repository
+2. 🌿 Create a feature branch
+3. 🧪 Test in both modes: `make test`
+4. 🔧 Lint your code: `make lint`  
+5. 📝 Update documentation if needed
+6. 🔄 Submit a pull request
+
+The selective CI system will automatically test only the modules affected by your changes!
