@@ -139,7 +139,7 @@ main() {
         echo "[]"
     else
         echo "Modules to test: ${affected_modules[*]}" >&2
-        printf '%s\n' "${affected_modules[@]}" | jq -R . | jq -s .
+        printf '%s\n' "${affected_modules[@]}" | jq -R . | jq -s -c .
     fi
 }
 
