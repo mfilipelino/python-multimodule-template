@@ -7,11 +7,51 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  # Detect which modules changed and need testing
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.changes.outputs.modules }}
+      has-changes: ${{ steps.changes.outputs.has-changes }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for change detection
+    
+    - name: Detect changed modules
+      id: changes
+      run: |
+        # Install jq for JSON processing
+        sudo apt-get update && sudo apt-get install -y jq
+        
+        # Detect changes
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          modules=$(.github/scripts/detect-changes.sh origin/${{ github.base_ref }} HEAD)
+        else
+          modules=$(.github/scripts/detect-changes.sh HEAD~1 HEAD)
+        fi
+        
+        echo "modules=$modules" >> $GITHUB_OUTPUT
+        
+        # Check if we have any modules to test
+        if [[ "$modules" == "[]" ]]; then
+          echo "has-changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "has-changes=true" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Detected modules: $modules"
+
+  # Test individual modules (only affected ones)
+  test-modules:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
     strategy:
       matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
         python-version: ["3.12"]
+      fail-fast: false  # Don't stop other modules if one fails
 
     steps:
     - uses: actions/checkout@v4
@@ -24,18 +64,50 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
-    - name: Build all modules
-      run: make all
+    - name: Setup shared repository
+      run: make setup-shared
 
-    - name: Run tests
-      run: make test
+    - name: Build dependencies for ${{ matrix.module }}
+      run: |
+        # Get modules needed to build this module (in dependency order)
+        modules=$(.github/scripts/get-build-order.sh ${{ matrix.module }})
+        for mod in $modules; do
+          echo "Building $mod..."
+          make -C "$mod" build-shared
+        done
 
-    - name: Run linting
-      run: make lint
+    - name: Install ${{ matrix.module }}
+      run: make -C ${{ matrix.module }} install
 
-    - name: Upload coverage reports
+    - name: Test ${{ matrix.module }}
+      run: make -C ${{ matrix.module }} test
+
+    - name: Lint ${{ matrix.module }}
+      run: make -C ${{ matrix.module }} lint
+
+    - name: Upload coverage for ${{ matrix.module }}
       uses: codecov/codecov-action@v4
       if: success()
       with:
-        files: ./module1/coverage.xml,./module2/coverage.xml
+        files: ./${{ matrix.module }}/coverage.xml
+        flags: ${{ matrix.module }}
         fail_ci_if_error: false
+
+  # Summary job for status checks
+  ci-status:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test-modules]
+    if: always()
+    steps:
+    - name: Check CI status
+      run: |
+        if [[ "${{ needs.detect-changes.outputs.has-changes }}" == "false" ]]; then
+          echo "✅ No modules affected by changes - CI passed"
+          exit 0
+        elif [[ "${{ needs.test-modules.result }}" == "success" ]]; then
+          echo "✅ All affected modules passed testing"
+          exit 0
+        else
+          echo "❌ Some modules failed testing"
+          exit 1
+        fi
