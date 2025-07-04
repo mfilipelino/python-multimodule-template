@@ -135,6 +135,43 @@ make test           # Run tests
 4. **Lint your code**: `make lint`
 5. **Rebuild if needed**: `make rebuild`
 
+## Selective CI System
+
+The project includes an intelligent CI system that only tests changed modules and their dependents:
+
+### How It Works
+- **Change Detection**: Automatically detects which files changed in commits/PRs
+- **Module Mapping**: Maps changed files to their respective modules
+- **Dependency Resolution**: Includes dependent modules in testing (e.g., if module1 changes, module2 is also tested)
+- **Parallel Testing**: Runs tests for each affected module in parallel using GitHub Actions matrix strategy
+
+### Change Detection Rules
+- `module1/**` → Tests module1 + module2 (dependent)
+- `module2/**` → Tests only module2
+- `shared/**`, `Makefile`, `.github/workflows/` → Tests all modules
+- `README.md`, `LICENSE`, `CONTRIBUTING.md` → Skips CI (docs only)
+
+### Benefits
+- ⚡ **Faster CI**: Only test what changed
+- 💰 **Cost Efficient**: Reduced compute time
+- 🔄 **Quick Feedback**: Faster results for developers
+- 📈 **Scalable**: Performance improves as more modules are added
+
+### Example Workflows
+```bash
+# Only module2 changes → Tests only module2
+git commit -m "fix: Update module2 validation logic"
+
+# Module1 changes → Tests module1 AND module2 (dependency)
+git commit -m "feat: Add new function to module1"
+
+# Documentation changes → Skips all module testing
+git commit -m "docs: Update README with new examples"
+
+# Root file changes → Tests all modules
+git commit -m "chore: Update root Makefile"
+```
+
 ## Adding New Modules
 
 1. **Create module directory** following the pattern `moduleN/`
@@ -144,6 +181,9 @@ make test           # Run tests
    - Dependencies on other modules (if any)
 4. **Update root Makefile** `MODULE_ORDER` to include the new module
 5. **Update dependent module Makefiles** to check for new dependencies
+6. **Update CI scripts** for new module:
+   - Add to `.github/scripts/detect-changes.sh` dependency map
+   - Add to `.github/scripts/get-build-order.sh` module order
 
 ## Troubleshooting
 

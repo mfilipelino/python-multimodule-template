@@ -38,6 +38,8 @@ Thank you for your interest in contributing! This document provides guidelines a
    make lint    # Run linting
    ```
 
+   Note: The CI system will automatically detect which modules changed and only test those modules + their dependents. This provides faster feedback while maintaining correctness.
+
 4. **Commit your changes**
    ```bash
    git add .
