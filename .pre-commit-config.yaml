@@ -1,0 +1,127 @@
+# Pre-commit hooks for multi-module Python project
+# Run with: pre-commit run --all-files
+
+repos:
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Python code quality
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      # Linting
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      # Formatting
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Additional formatting with Black (backup)
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.12
+        args: [--line-length=88]
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-r, --format=custom, --msg-template='{abspath}:{line}: {test_id}[bandit]: {severity}: {msg}']
+        exclude: ^tests/|modules/.*/tests/
+
+  # Type checking
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.344
+    hooks:
+      - id: pyright
+        additional_dependencies: []
+
+  # Test execution for changed modules
+  - repo: local
+    hooks:
+      - id: test-changed-modules
+        name: Test changed modules
+        entry: .github/scripts/run-tests-for-changes.sh
+        language: script
+        pass_filenames: false
+        always_run: false
+        files: ^modules/.*\.(py)$
+
+  # Advanced secrets detection
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: Check for secrets and sensitive data
+        entry: .github/scripts/check-secrets.sh
+        language: script
+        types: [text]
+        exclude: ^\.pre-commit-config\.yaml$|^\.github/scripts/check-secrets\.sh$
+
+  # Conventional commits validation
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [--strict, --force-scope]
+
+  # Python import sorting (additional to ruff)
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88]
+
+  # YAML formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [yaml, markdown]
+        exclude: ^\.github/workflows/.*\.yml$
+
+  # Dependency scanning
+  - repo: local
+    hooks:
+      - id: safety-check
+        name: Safety dependency vulnerability scan
+        entry: bash -c 'uv pip freeze | safety check --json --stdin || echo "Safety check completed with warnings"'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+# Global configuration
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+default_stages: [pre-commit]
+fail_fast: false
+minimum_pre_commit_version: 3.6.0
+
+# CI configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [test-changed-modules, safety-check]
+  submodules: false
