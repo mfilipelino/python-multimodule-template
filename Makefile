@@ -1,5 +1,5 @@
 # Root Makefile - dual-mode operation (workspace dev mode + package build mode)
-.PHONY: all install test lint clean build help setup-shared build-deps workspace-install workspace-mode
+.PHONY: all install test lint clean build help setup-shared build-deps workspace-install workspace-mode version-show version-analyze version-bump version-bump-dry pre-commit-install pre-commit-update pre-commit-run pre-commit-run-staged pre-commit-uninstall setup-dev
 
 # Mode detection
 WORKSPACE_MODE := $(shell test -f pyproject.toml && grep -q "\[tool.uv.workspace\]" pyproject.toml && echo "1" || echo "0")
@@ -14,6 +14,11 @@ INDEX_DIR := $(SHARED_DIR)/index
 
 # Default target - choose mode based on workspace detection
 all: workspace-mode
+
+# Developer setup
+setup-dev:
+	@echo "Running developer environment setup..."
+	@scripts/setup-dev.sh
 
 # Workspace mode (for development)
 workspace-mode:
@@ -121,10 +126,54 @@ update-index:
 	@cd $(PACKAGES_DIR) && python -m pip install --upgrade pip
 	@cd $(PACKAGES_DIR) && python -m pip index --simple $(INDEX_DIR)
 
+# Semantic versioning targets
+version-show:
+	@echo "Current versions:"
+	@python .github/scripts/semantic-version.py version
+
+version-analyze:
+	@echo "Analyzing commits for version bumps:"
+	@python .github/scripts/semantic-version.py analyze
+
+version-bump:
+	@echo "Bumping versions based on conventional commits:"
+	@python .github/scripts/semantic-version.py bump
+
+version-bump-dry:
+	@echo "Dry run - showing what versions would be bumped:"
+	@python .github/scripts/semantic-version.py bump --dry-run
+
+# Pre-commit targets
+pre-commit-install:
+	@echo "Installing pre-commit hooks..."
+	uv run pre-commit install
+	uv run pre-commit install --hook-type commit-msg
+	@echo "✅ Pre-commit hooks installed successfully"
+
+pre-commit-update:
+	@echo "Updating pre-commit hooks..."
+	uv run pre-commit autoupdate
+	@echo "✅ Pre-commit hooks updated"
+
+pre-commit-run:
+	@echo "Running pre-commit hooks on all files..."
+	uv run pre-commit run --all-files
+
+pre-commit-run-staged:
+	@echo "Running pre-commit hooks on staged files..."
+	uv run pre-commit run
+
+pre-commit-uninstall:
+	@echo "Uninstalling pre-commit hooks..."
+	uv run pre-commit uninstall
+	uv run pre-commit uninstall --hook-type commit-msg
+	@echo "✅ Pre-commit hooks uninstalled"
+
 # Help target
 help:
 	@echo "Available targets:"
 	@echo "  all         - Auto-detect mode and install (default)"
+	@echo "  setup-dev   - Complete development environment setup"
 	@echo "  workspace-install - Install in workspace mode (development)"
 	@echo "  setup-shared- Setup shared package repository (package mode)"
 	@echo "  build-deps  - Build all modules in dependency order (package mode)"
@@ -137,6 +186,15 @@ help:
 	@echo "  module1     - Build and install only module1 (package mode)"
 	@echo "  module2     - Build and install only module2 (package mode)"
 	@echo "  update-index- Update shared package index"
+	@echo "  version-show- Show current versions of all components"
+	@echo "  version-analyze - Analyze commits for version bumps"
+	@echo "  version-bump- Bump versions based on conventional commits"
+	@echo "  version-bump-dry - Show what versions would be bumped (dry run)"
+	@echo "  pre-commit-install - Install pre-commit hooks"
+	@echo "  pre-commit-update - Update pre-commit hook versions"
+	@echo "  pre-commit-run - Run pre-commit hooks on all files"
+	@echo "  pre-commit-run-staged - Run pre-commit hooks on staged files"
+	@echo "  pre-commit-uninstall - Uninstall pre-commit hooks"
 	@echo "  help        - Show this help message"
 	@echo ""
 	@echo "Mode detection:"
