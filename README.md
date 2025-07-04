@@ -22,6 +22,7 @@ project-root/
 - **Isolation**: Each module is self-contained and testable independently
 - **Version Control**: Dependencies use specific package versions
 - **Modern Tooling**: Ruff for linting/formatting, Bandit for security, Pyright for type checking
+- **Selective CI**: Only tests changed modules and their dependents for faster feedback
 
 ## Prerequisites
 
